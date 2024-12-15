@@ -1,4 +1,4 @@
-# shuxuejianmo
+# Mathematical modeling of biological systems
 ## This is the final project for biomodel course in USTC, finished by three people, lyx, lpr and crx.
 ## Category
 ### demo part: Our demo is mainly composed by three parts, single neuron, relationship between neurons, relationships between different neuron networks.
