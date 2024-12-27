@@ -14,7 +14,7 @@ V_reset = -65  # 重置电位
 U_reset = -14  # 重置恢复变量
 
 # 神经元数量
-n_neurons = 3
+n_neurons = 5
 
 # 初始化神经元状态
 V = np.full(n_neurons, -65.0)  # 每个神经元的初始膜电位
@@ -27,8 +27,11 @@ spike_times = np.full(n_neurons, -np.inf)  # 初始化为负无穷，表示没�
 # 初始化神经元的三维位置 (随机分布在一个立方体中)
 positions = np.random.rand(n_neurons, 3) * 10  # 位置范围：0-10 (单位：任意单位)
 
+lestw=-2
+mostw=2
+
 # 初始化突触连接矩阵 (全连接有向图)
-W = np.random.uniform(-5, 5, (n_neurons, n_neurons))  # 突触权重矩阵，-1到1之间
+W = np.random.uniform(lestw, mostw, (n_neurons, n_neurons))  # 突触权重矩阵，-1到1之间
 for k in range(n_neurons):
      for j in range(n_neurons):
          if j<k:
@@ -50,7 +53,7 @@ tau_minus = 20.0  # 负向STDP的时间常数（ms）
 # 记录结果
 V_record = np.zeros((n_neurons, time_steps))  # 每个神经元在每个时间点的膜电位
 W_record = np.zeros((n_neurons, n_neurons, time_steps))  # 记录每个连接的突触权重变化
-
+V_average = np.zeros(time_steps)
 
 # 神经元的放电状态 (1为放电，0为不放电)
 S = np.zeros(n_neurons)
@@ -74,7 +77,7 @@ ax_3d = fig_3d.add_subplot(111, projection='3d')
 colors = plt.cm.viridis((V - V_reset) / (V_th - V_reset))
 
 # 绘制神经元的三维位置
-scat = ax_3d.scatter(positions[:, 0], positions[:, 1], positions[:, 2], c=colors, s=100, marker='o')
+scat = ax_3d.scatter(positions[:, 0], positions[:, 1], positions[:, 2], c=colors, s=200, marker='o')
 
 # 绘制神经元之间的连接边
 edge_lines = []
@@ -84,7 +87,7 @@ for i in range(n_neurons):
             # 使用权重控制边的颜色和线的粗细
             weight = W[i, j]
             color = 'r' if weight > 0 else 'b'  # 红色表示正向连接，蓝色表示负向连接
-            linewidth =  2*abs(weight)  # 连接线的粗细，权重大时线条更粗
+            linewidth =  abs(weight)  # 连接线的粗细，权重大时线条更粗
 
             # 绘制一条连接线
             line, = ax_3d.plot([positions[i, 0], positions[j, 0]], 
@@ -104,7 +107,7 @@ cbar = plt.colorbar(scat)
 cbar.set_label('Membrane Potential (mV)')
 
 # 添加当前时间的文本标签
-time_text = ax_3d.text2D(0.95, 0.95, f'Time: {0:.2f} ms', transform=ax_3d.transAxes, ha='right', va='top', fontsize=12)
+time_text = ax_3d.text2D(0.95, 0.95, f'Time: {0:.2f} ms', transform=ax_3d.transAxes, ha='right', va='top', fontsize=18)
 
 def update_synaptic_weights():
     global W, spike_times
@@ -126,7 +129,7 @@ def update_synaptic_weights():
                     W[i, j] -= A_minus * np.exp(-delta_t / tau_minus)
 
                 # 确保权重在[-5, 5]范围内
-                W[i, j] = np.clip(W[i, j], -5, 5)
+                W[i, j] = np.clip(W[i, j], lestw, mostw)
 
 
 # 外部电流刺激函数
@@ -136,12 +139,12 @@ def get_external_current(t, i):
     你可以根据需要修改这个函数，模拟不同的输入模式。
     """
     # 示例：简单的周期性刺激，每个神经元有不同的周期
-    if t <T  :
-        I = 8  # 每个神经元的刺激频率不同
+    if  T/3<t<T*2/3 :
+        I = 10+ random.gauss(1, 1) # 每个神经元的刺激频率不同
         amplitude = 5  # 刺激幅值
     else:
-        I = random.gauss(2.3, 1)
-    return I  # 时间单位是毫秒
+        I = random.gauss(1, 1)
+    return 10+ random.gauss(1, 1)  # 时间单位是毫秒
 
 # 计算突触电流（高斯分布）
 def synaptic_current(S, W, i):
@@ -183,7 +186,8 @@ def update(frame):
 
         # 记录膜电位
         V_record[i, frame] = V[i]
-
+        V_average[frame] =V_average[frame] +V[i]
+    V_average[frame]=V_average[frame]/n_neurons
     # 更新膜电位颜色
     colors = plt.cm.viridis((V - V_reset) / (V_th - V_reset))
     scat.set_facecolor(colors)
@@ -215,7 +219,7 @@ def plot_weight_changes(W_record, time_steps):
 
     for i in range(n_neurons):
         for j in range(n_neurons):
-            if W[i, j] != 0:  # 只绘制有连接的权重变化
+            if W[i, j] != 0 and i!=j:  # 只绘制有连接的权重变化
                 plt.plot(np.arange(time_steps) * dt, W_record[i, j, :], label=f"Connection ({i+1} -> {j+1})")
 
     plt.xlabel('Time (ms)')
@@ -320,4 +324,12 @@ plot_weight_changes(W_record, time_steps)
 plot_frequency_spectrum(freqs, V_amp, n_neurons)
 plt.show()  
 
+t=np.arange(0, T, dt)
+plt.figure(figsize=(8, 1))
+plt.plot(t, V_average, lw=1.5, color='red')  # 轨迹线加粗
+plt.title('Membrane potential vs. Time')
+plt.xlabel('Time [ms]')
+plt.ylabel('Membrane potential (V) [mV]')
+plt.grid(True)
+plt.show()
 
