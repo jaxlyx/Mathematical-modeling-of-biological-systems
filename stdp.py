@@ -300,7 +300,7 @@ for frame in range(time_steps):
 
 # 创建动画
 ani = FuncAnimation(fig_3d, update, frames=range(time_steps), interval=dt, blit=True)
-
+ani.save('animation.gif', writer='imagemagick', fps=15)
 
 # 生成每个神经元的膜电位随时间变化的静态图
 for i in range(n_neurons):
